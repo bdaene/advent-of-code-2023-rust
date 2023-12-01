@@ -1,12 +1,11 @@
 use crate::SolutionBase;
 
-
 #[derive(PartialEq, Debug)]
 pub struct Solution {
     document: Vec<String>,
 }
 
-const DIGITS_STRING: [&str; 18] = [
+const DIGITS_NAME: [&str; 18] = [
     "1", "one",
     "2", "two",
     "3", "three",
@@ -17,24 +16,35 @@ const DIGITS_STRING: [&str; 18] = [
     "8", "eight",
     "9", "nine",
 ];
-const DIGITS: [u32; 18] = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9];
 
-fn get_first_digit(line: &str) -> u32 {
-    let digit = DIGITS_STRING.iter()
+fn get_first_digit(line: &str) -> Option<u32> {
+    let digit_index = DIGITS_NAME.iter()
         .enumerate()
-        .map(|(i, &digit)| (line.find(digit).unwrap_or(line.len()), DIGITS[i]))
-        .min();
-    digit.unwrap_or((0, 0)).1
+        .filter_map(|(i, &digit)| {
+            if let Some(position) = line.find(digit) {
+                Some((position, i))
+            } else {
+                None
+            }
+        })
+        .min()?
+        .1;
+    Some(1 + ((digit_index as u32) >> 1))
 }
 
-fn get_last_digit(line: &str) -> u32 {
-    let digit = DIGITS_STRING.iter()
+fn get_last_digit(line: &str) -> Option<u32> {
+    let digit_index = DIGITS_NAME.iter()
         .enumerate()
-        .map(|(i, &digit)| (line.rfind(digit), DIGITS[i]))
-        .filter(|(position, _)| position.is_some())
-        .map(|(position, digit)| (position.unwrap(), digit))
-        .max();
-    digit.unwrap_or((0, 0)).1
+        .filter_map(|(i, &digit)| {
+            if let Some(position) = line.rfind(digit) {
+                Some((position, i))
+            } else {
+                None
+            }
+        })
+        .max()?
+        .1;
+    Some(1 + ((digit_index as u32) >> 1))
 }
 
 impl SolutionBase for Solution {
@@ -49,36 +59,39 @@ impl SolutionBase for Solution {
 
     fn part_1(&self) -> String {
         self.document.iter()
-            .map(|s| {
-                let digits: Vec<u32> = s.chars()
+            .map(|line| {
+                let digits: Vec<u32> = line.chars()
                     .filter_map(|c| c.to_digit(10))
                     .collect();
                 digits.first().unwrap() * 10 + digits.last().unwrap()
-            }).sum::<u32>().to_string()
+            })
+            .sum::<u32>().to_string()
     }
 
     fn part_2(&self) -> String {
-        let numbers: Vec<u32> = self.document.iter()
-            .map(|line| 10 * get_first_digit(line) + get_last_digit(line)).collect();
-
-        numbers.iter().sum::<u32>().to_string()
+        self.document.iter()
+            .map(|line| {
+                get_first_digit(line).unwrap() * 10 + get_last_digit(line).unwrap()
+            })
+            .sum::<u32>().to_string()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::SolutionBase;
     use std::fs;
+
+    use crate::SolutionBase;
 
     use super::*;
 
-    fn get_solution() -> Solution {
+    fn get_example() -> Solution {
         let data: String = fs::read_to_string("data/day_01_example.txt").unwrap();
 
         Solution::new(&data)
     }
 
-    fn get_solution_2() -> Solution {
+    fn get_example_2() -> Solution {
         let data: String = fs::read_to_string("data/day_01_example_2.txt").unwrap();
 
         Solution::new(&data)
@@ -86,7 +99,7 @@ mod test {
 
     #[test]
     fn new() {
-        let solution = get_solution();
+        let solution = get_example();
 
         assert_eq!(
             solution,
@@ -103,23 +116,37 @@ mod test {
 
     #[test]
     fn part_1() {
-        let solution = get_solution();
+        let solution = get_example();
 
         assert_eq!(solution.part_1(), "142");
     }
 
     #[test]
     fn part_2() {
-        let solution = get_solution_2();
+        let solution = get_example_2();
 
         assert_eq!(solution.part_2(), "358");
     }
 
     #[test]
-    fn test_get_last_digit() {
-        let s = "three";
+    fn test_get_first_digit() {
+        assert_eq!(get_first_digit("three"), Some(3));
+        assert_eq!(get_first_digit("4three5"), Some(4));
+        assert_eq!(get_first_digit("25twoabds"), Some(2));
+        assert_eq!(get_first_digit("___oooneee___"), Some(1));
+        assert_eq!(get_first_digit("8"), Some(8));
+        assert_eq!(get_first_digit("fquhqz"), None);
+        assert_eq!(get_first_digit("454"), Some(4));
+    }
 
-        assert_eq!(s.rfind("three"), Some(0));
-        assert_eq!(get_last_digit(s), 3);
+    #[test]
+    fn test_get_last_digit() {
+        assert_eq!(get_last_digit("three"), Some(3));
+        assert_eq!(get_last_digit("4three5"), Some(5));
+        assert_eq!(get_last_digit("25twoabds"), Some(2));
+        assert_eq!(get_last_digit("___oooneee___"), Some(1));
+        assert_eq!(get_last_digit("8"), Some(8));
+        assert_eq!(get_last_digit("fquhqz"), None);
+        assert_eq!(get_last_digit("454"), Some(4));
     }
 }
