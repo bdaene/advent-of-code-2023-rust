@@ -1,7 +1,7 @@
 use std::fs;
 use std::time;
 
-use advent_of_code_2023_rust::get_solution;
+use advent_of_code_2023_rust::get_puzzle;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -18,7 +18,7 @@ fn main() {
     let data = fs::read_to_string(args.data).expect("Input data not found.");
 
     let start = time::Instant::now();
-    let solution = get_solution(args.day, &data);
+    let solution = get_puzzle(args.day, &data);
     println!("Parsed data in {:?}", start.elapsed());
 
     let start = time::Instant::now();

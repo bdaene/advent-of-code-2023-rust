@@ -1,7 +1,7 @@
-use crate::SolutionBase;
+use crate::PuzzleBase;
 
 #[derive(PartialEq, Debug)]
-pub struct Solution {
+pub struct Puzzle {
     document: Vec<String>,
 }
 
@@ -47,14 +47,14 @@ fn get_last_digit(line: &str) -> Option<u32> {
     Some(1 + ((digit_index as u32) >> 1))
 }
 
-impl SolutionBase for Solution {
+impl PuzzleBase for Puzzle {
     fn new(data: &str) -> Self {
         let lines = data
             .lines()
             .map(|s| String::from(s))
             .collect();
 
-        Solution { document: lines }
+        Puzzle { document: lines }
     }
 
     fn part_1(&self) -> String {
@@ -81,20 +81,20 @@ impl SolutionBase for Solution {
 mod test {
     use std::fs;
 
-    use crate::SolutionBase;
+    use crate::PuzzleBase;
 
     use super::*;
 
-    fn get_example() -> Solution {
+    fn get_example() -> Puzzle {
         let data: String = fs::read_to_string("data/day_01_example.txt").unwrap();
 
-        Solution::new(&data)
+        Puzzle::new(&data)
     }
 
-    fn get_example_2() -> Solution {
+    fn get_example_2() -> Puzzle {
         let data: String = fs::read_to_string("data/day_01_example_2.txt").unwrap();
 
-        Solution::new(&data)
+        Puzzle::new(&data)
     }
 
     #[test]
@@ -103,7 +103,7 @@ mod test {
 
         assert_eq!(
             solution,
-            Solution {
+            Puzzle {
                 document: vec![
                     String::from("1abc2"),
                     String::from("pqr3stu8vwx"),

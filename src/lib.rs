@@ -1,6 +1,6 @@
 pub mod days;
 
-pub trait SolutionBase {
+pub trait PuzzleBase {
     fn new(data: &str) -> Self
         where
             Self: Sized;
@@ -14,9 +14,10 @@ pub trait SolutionBase {
     }
 }
 
-pub fn get_solution(day: u8, data: &str) -> Box<dyn SolutionBase> {
+pub fn get_puzzle(day: u8, data: &str) -> Box<dyn PuzzleBase> {
     match day {
-        01 => Box::new(days::day_01::Solution::new(data)),
+        01 => Box::new(days::day_01::Puzzle::new(data)),
+        02 => Box::new(days::day_02::Puzzle::new(data)),
 
         _ => panic!("Invalid day"),
     }

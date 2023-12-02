@@ -1,32 +1,33 @@
-use crate::SolutionBase;
+use crate::PuzzleBase;
 
 #[derive(PartialEq, Debug)]
-pub struct Solution {}
+pub struct Puzzle {}
 
-impl SolutionBase for Solution {
+impl PuzzleBase for Puzzle {
     fn new(data: &str) -> Self {
-        Solution {}
+        Puzzle {}
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::SolutionBase;
     use std::fs;
+
+    use crate::PuzzleBase;
 
     use super::*;
 
-    fn get_solution() -> Solution {
+    fn get_solution() -> Puzzle {
         let data = fs::read_to_string("data/example.txt").unwrap();
 
-        Solution::new(&data)
+        Puzzle::new(&data)
     }
 
     #[test]
     fn new() {
         let solution = get_solution();
 
-        assert_eq!(solution, Solution {})
+        assert_eq!(solution, Puzzle {})
     }
 
     #[test]
