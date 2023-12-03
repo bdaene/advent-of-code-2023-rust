@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run advent-of-code-2023-rust" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run --package advent-of-code-2023-rust --bin advent-of-code-2023-rust 2 data/day_02_input.txt" />
+    <option name="command" value="run --package advent-of-code-2023-rust --bin advent-of-code-2023-rust 3 data/day_03_input.txt" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="emulateTerminal" value="true" />
     <option name="channel" value="DEFAULT" />

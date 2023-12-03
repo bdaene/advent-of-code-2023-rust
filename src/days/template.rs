@@ -1,11 +1,13 @@
 use crate::PuzzleBase;
 
 #[derive(PartialEq, Debug)]
-pub struct Puzzle {}
+pub struct Puzzle {
+    data: String,
+}
 
 impl PuzzleBase for Puzzle {
     fn new(data: &str) -> Self {
-        Puzzle {}
+        Puzzle { data: String::from(data) }
     }
 }
 
@@ -17,7 +19,7 @@ mod test {
 
     use super::*;
 
-    fn get_solution() -> Puzzle {
+    fn get_puzzle() -> Puzzle {
         let data = fs::read_to_string("data/example.txt").unwrap();
 
         Puzzle::new(&data)
@@ -25,22 +27,22 @@ mod test {
 
     #[test]
     fn new() {
-        let solution = get_solution();
+        let puzzle = get_puzzle();
 
-        assert_eq!(solution, Puzzle {})
+        assert_eq!(puzzle, Puzzle { data: String::from("Hello World!") })
     }
 
     #[test]
     fn part_1() {
-        let solution = get_solution();
+        let puzzle = get_puzzle();
 
-        assert_eq!(solution.part_1(), "");
+        assert_eq!(puzzle.part_1(), "Not implemented yet.");
     }
 
     #[test]
     fn part_2() {
-        let solution = get_solution();
+        let puzzle = get_puzzle();
 
-        assert_eq!(solution.part_2(), "");
+        assert_eq!(puzzle.part_2(), "Not implemented yet.");
     }
 }
