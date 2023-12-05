@@ -86,13 +86,13 @@ mod test {
     use super::*;
 
     fn get_example() -> Puzzle {
-        let data: String = fs::read_to_string("data/day_01_example.txt").unwrap();
+        let data: String = fs::read_to_string("data/examples/day_01.txt").unwrap();
 
         Puzzle::new(&data)
     }
 
     fn get_example_2() -> Puzzle {
-        let data: String = fs::read_to_string("data/day_01_example_2.txt").unwrap();
+        let data: String = fs::read_to_string("data/examples/day_01_2.txt").unwrap();
 
         Puzzle::new(&data)
     }

@@ -6,7 +6,7 @@ use advent_of_code_2023_rust::get_puzzle;
 
 fn benchmark_day(criterion: &mut Criterion, day: u8) {
     let day_name = format!("day_{:0>2}", day);
-    let data = fs::read_to_string(&format!("data/{day_name}_input.txt")).unwrap();
+    let data = fs::read_to_string(&format!("data/inputs/{day_name}.txt")).unwrap();
     let puzzle = get_puzzle(day, &data);
 
     criterion.bench_function(&format!("{day_name}_data"),

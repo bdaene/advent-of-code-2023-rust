@@ -100,7 +100,7 @@ mod test {
     use super::*;
 
     fn get_puzzle() -> Puzzle {
-        let data = fs::read_to_string("data/day_04_example.txt").unwrap();
+        let data = fs::read_to_string("data/examples/day_04.txt").unwrap();
 
         Puzzle::new(&data)
     }

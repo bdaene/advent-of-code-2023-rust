@@ -136,7 +136,7 @@ mod test {
     use super::*;
 
     fn get_solution() -> Puzzle {
-        let data = fs::read_to_string("data/day_02_example.txt").unwrap();
+        let data = fs::read_to_string("data/examples/day_02.txt").unwrap();
 
         Puzzle::new(&data)
     }

@@ -1,6 +1,6 @@
 use crate::PuzzleBase;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Puzzle {
     data: String,
 }
@@ -20,7 +20,7 @@ mod test {
     use super::*;
 
     fn get_puzzle() -> Puzzle {
-        let data = fs::read_to_string("data/example.txt").unwrap();
+        let data = fs::read_to_string("data/examples/example.txt").unwrap();
 
         Puzzle::new(&data)
     }
