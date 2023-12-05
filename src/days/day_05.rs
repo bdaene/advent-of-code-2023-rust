@@ -15,15 +15,21 @@ pub struct Puzzle {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Map {
+struct Map {
     name: String,
     ranges: Vec<Range>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Range {
+struct Range {
     destination_start: u32,
     source_start: u32,
+    length: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct Slice {
+    start: u32,
     length: u32,
 }
 
@@ -47,11 +53,6 @@ impl Puzzle {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-struct Slice {
-    start: u32,
-    length: u32,
-}
 
 impl Map {
     fn parse(input: &str) -> IResult<&str, Self> {
@@ -72,8 +73,8 @@ impl Map {
 
     fn map(&self, source: u32) -> u32 {
         for range in self.ranges.iter() {
-            if range.source_start <= source && source - range.source_start < range.length {
-                return source - range.source_start + range.destination_start;
+            if range.contains(source) {
+                return range.map(source);
             }
         }
         source
@@ -90,40 +91,26 @@ impl Map {
         let mut current_range = map_ranges.next();
         while let Some(slice) = source_slices.pop() {
             while let Some(range) = current_range {
-                if slice.start < range.source_start || slice.start - range.source_start < range.length { break; }
+                if slice.start < range.source_start || range.contains(slice.start) { break; }
                 current_range = map_ranges.next()
             }
             if let Some(range) = current_range {
-                if slice.start < range.source_start {
-                    let non_matching_length = slice.length.min(range.source_start - slice.start);
-                    destination_slices.push(Slice {
-                        start: slice.start,
-                        length: non_matching_length,
-                    });
-                    if slice.length > non_matching_length {
-                        source_slices.push(Slice {
-                            start: slice.start + non_matching_length,
-                            length: slice.length - non_matching_length,
-                        })
-                    }
+                let (left_slice, right_slice) = if slice.start < range.source_start {
+                    slice.split_at(range.source_start - slice.start)
                 } else {
-                    let matching_length = slice.length.min(range.length - (slice.start - range.source_start));
-                    destination_slices.push(Slice {
-                        start: range.destination_start + (slice.start - range.source_start),
-                        length: matching_length,
-                    });
-                    if slice.length > matching_length {
-                        source_slices.push(Slice {
-                            start: slice.start + matching_length,
-                            length: slice.length - matching_length,
-                        })
-                    }
+                    let (left_slice, right_slice) = slice.split_at(range.length - (slice.start - range.source_start));
+                    let left_slice = Slice {
+                        start: range.map(left_slice.start),
+                        length: left_slice.length,
+                    };
+                    (left_slice, right_slice)
+                };
+                destination_slices.push(left_slice);
+                if let Some(right_slice) = right_slice {
+                    source_slices.push(right_slice)
                 }
             } else {
-                destination_slices.push(Slice {
-                    start: slice.start,
-                    length: slice.length,
-                })
+                destination_slices.push(slice)
             }
         }
         destination_slices
@@ -141,6 +128,28 @@ impl Range {
         ))
             .map(|(destination_start, _, source_start, _, length)| Self { destination_start, source_start, length })
             .parse(input)
+    }
+
+    fn contains(&self, source: u32) -> bool {
+        self.source_start <= source && source - self.source_start < self.length
+    }
+
+    fn map(&self, source: u32) -> u32 {
+        debug_assert!(self.contains(source));
+        self.destination_start + (source - self.source_start)
+    }
+}
+
+impl Slice {
+    fn split_at(&self, length: u32) -> (Slice, Option<Slice>) {
+        if length >= self.length {
+            (*self, None)
+        } else {
+            (
+                Slice { start: self.start, length },
+                Some(Slice { start: self.start + length, length: self.length - length })
+            )
+        }
     }
 }
 
