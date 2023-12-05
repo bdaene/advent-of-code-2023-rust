@@ -10,7 +10,7 @@ use crate::PuzzleBase;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Puzzle {
-    seeds: Vec<u64>,
+    seeds: Vec<u32>,
     maps: Vec<Map>,
 }
 
@@ -22,9 +22,9 @@ pub struct Map {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Range {
-    destination_start: u64,
-    source_start: u64,
-    length: u64,
+    destination_start: u32,
+    source_start: u32,
+    length: u32,
 }
 
 impl Puzzle {
@@ -33,7 +33,7 @@ impl Puzzle {
             tag("seeds: ").precedes(
                 separated_list1(
                     complete::space1,
-                    complete::u64,
+                    complete::u32,
                 )
             ),
             tuple((complete::line_ending, complete::line_ending)),
@@ -49,8 +49,8 @@ impl Puzzle {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct Slice {
-    start: u64,
-    length: u64,
+    start: u32,
+    length: u32,
 }
 
 impl Map {
@@ -70,9 +70,9 @@ impl Map {
             .parse(input)
     }
 
-    fn map(&self, source: u64) -> u64 {
+    fn map(&self, source: u32) -> u32 {
         for range in self.ranges.iter() {
-            if (range.source_start..(range.source_start + range.length)).contains(&source) {
+            if range.source_start <= source && source - range.source_start < range.length {
                 return source - range.source_start + range.destination_start;
             }
         }
@@ -90,7 +90,7 @@ impl Map {
         let mut current_range = map_ranges.next();
         while let Some(slice) = source_slices.pop() {
             while let Some(range) = current_range {
-                if slice.start < range.source_start + range.length { break; }
+                if slice.start < range.source_start || slice.start - range.source_start < range.length { break; }
                 current_range = map_ranges.next()
             }
             if let Some(range) = current_range {
@@ -107,9 +107,9 @@ impl Map {
                         })
                     }
                 } else {
-                    let matching_length = slice.length.min(range.source_start + range.length - slice.start);
+                    let matching_length = slice.length.min(range.length - (slice.start - range.source_start));
                     destination_slices.push(Slice {
-                        start: range.destination_start + slice.start - range.source_start,
+                        start: range.destination_start + (slice.start - range.source_start),
                         length: matching_length,
                     });
                     if slice.length > matching_length {
@@ -133,11 +133,11 @@ impl Map {
 impl Range {
     fn parse(input: &str) -> IResult<&str, Self> {
         tuple((
-            complete::u64,
+            complete::u32,
             complete::space1,
-            complete::u64,
+            complete::u32,
             complete::space1,
-            complete::u64
+            complete::u32
         ))
             .map(|(destination_start, _, source_start, _, length)| Self { destination_start, source_start, length })
             .parse(input)
@@ -164,15 +164,13 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_2(&self) -> String {
-        self.seeds.chunks_exact(2)
-            .map(|seeds| {
-                self.maps.iter()
-                    .fold(
-                        vec![Slice { start: seeds[0], length: seeds[1] }],
-                        |seeds, map| map.map_slices(&seeds),
-                    )
-            })
-            .map(|locations| locations.iter().map(|location| location.start).min().unwrap())
+        let seed_slices = self.seeds.chunks_exact(2)
+            .map(|seeds| Slice { start: seeds[0], length: seeds[1] })
+            .collect();
+        let location_slices = self.maps.iter()
+            .fold(seed_slices, |seeds, map| map.map_slices(&seeds));
+        location_slices.iter()
+            .map(|location_slice| location_slice.start)
             .min()
             .unwrap()
             .to_string()
