@@ -26,13 +26,14 @@ impl Puzzle {
     }
 }
 
-fn get_number_of_ways(time: u32, distance: u64) -> u32 {
-    let t2 = (time /2) as f64;
-    let d = distance as f64;
-    let delta = (t2.powf(2.) - d).powf(0.5);
-    let left = (t2 - delta + 1.).floor() as u32;
-    let right = (t2 + delta - 1.).ceil() as u32;
-    right - left + 1
+pub fn get_number_of_ways(time: u32, distance: u64) -> u32 {
+    let t = time as u64;
+    if t * t < 4 * (distance + 1) {
+        0
+    } else {
+        let delta = ((t * t - 4 * (distance + 1)) as f64).powf(0.5) as u32;
+        delta + (time + delta + 1) % 2
+    }
 }
 
 impl PuzzleBase for Puzzle {
@@ -86,6 +87,6 @@ mod test {
     fn part_2() {
         let puzzle = get_puzzle();
 
-        assert_eq!(puzzle.part_2(), "Not implemented yet.");
+        assert_eq!(puzzle.part_2(), "71503");
     }
 }
