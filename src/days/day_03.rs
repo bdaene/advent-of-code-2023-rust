@@ -1,3 +1,8 @@
+use nom::{IResult, Parser};
+use nom::bytes::complete::take_till1;
+use nom::character::complete;
+use nom::multi::separated_list1;
+
 use crate::PuzzleBase;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -6,12 +11,17 @@ pub struct Puzzle {
 }
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        let lines = data
-            .lines()
-            .map(|line| line.chars().collect())
-            .collect();
-        Puzzle { lines }
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_list1(
+            complete::line_ending,
+            take_till1(|c| "\r\n".contains(c)),
+        )
+            .map(|lines: Vec<&str>| Puzzle {
+                lines: lines.into_iter()
+                    .map(|line: &str| line.chars().collect())
+                    .collect()
+            })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {

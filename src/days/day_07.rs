@@ -47,16 +47,6 @@ enum HandType {
     FiveOfAKind,
 }
 
-impl Puzzle {
-    fn parse(input: &str) -> IResult<&str, Self> {
-        separated_list1(
-            complete::line_ending,
-            separated_pair(Hand::parse, complete::space1, complete::u32),
-        )
-            .map(|hand_bids| Self { hand_bids })
-            .parse(input)
-    }
-}
 
 impl Hand {
     fn parse(input: &str) -> IResult<&str, Self> {
@@ -114,10 +104,14 @@ impl Card {
     }
 }
 
-
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_list1(
+            complete::line_ending,
+            separated_pair(Hand::parse, complete::space1, complete::u32),
+        )
+            .map(|hand_bids| Self { hand_bids })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {

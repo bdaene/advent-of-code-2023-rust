@@ -1,6 +1,7 @@
-use nom::character::complete;
 use nom::{IResult, Parser};
+use nom::character::complete;
 use nom::multi::separated_list1;
+
 use crate::PuzzleBase;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -8,7 +9,21 @@ pub struct Puzzle {
     sequences: Vec<Vec<i32>>,
 }
 
-impl Puzzle {
+
+fn get_next(sequence: &Vec<i32>) -> i32 {
+    let mut result = 0;
+    let mut sequence = sequence.to_vec();
+    while let Some(ending) = sequence.last() {
+        result += ending;
+        sequence = sequence.iter()
+            .zip(sequence.iter().skip(1))
+            .map(|(a, b)| b - a)
+            .collect();
+    }
+    result
+}
+
+impl PuzzleBase for Puzzle {
     fn parse(input: &str) -> IResult<&str, Self> {
         separated_list1(
             complete::line_ending,
@@ -20,26 +35,6 @@ impl Puzzle {
             .map(|sequences| Self { sequences })
             .parse(input)
     }
-}
-
-fn get_next(sequence: &Vec<i32>) -> i32 {
-    let mut result = 0;
-    let mut sequence = sequence.to_vec();
-    while let Some(ending) = sequence.last() {
-        result += ending;
-        sequence = sequence.iter()
-            .zip(sequence.iter().skip(1))
-            .map(|(a,b)| b-a)
-            .collect();
-    }
-    result
-}
-
-impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
-    }
-
     fn part_1(&self) -> String {
         self.sequences.iter()
             .map(|sequence| get_next(sequence))

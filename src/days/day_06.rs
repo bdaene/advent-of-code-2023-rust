@@ -1,7 +1,6 @@
+use nom::{IResult, Parser};
 use nom::character::complete;
-use nom::IResult;
 use nom::multi::separated_list1;
-use nom::Parser;
 use nom::sequence::separated_pair;
 use nom_supreme::ParserExt;
 use nom_supreme::tag::complete::tag;
@@ -12,18 +11,6 @@ use crate::PuzzleBase;
 pub struct Puzzle {
     times: Vec<u32>,
     distances: Vec<u32>,
-}
-
-impl Puzzle {
-    fn parse(input: &str) -> IResult<&str, Self> {
-        separated_pair(
-            tag("Time:").precedes(complete::multispace1).precedes(separated_list1(complete::multispace1, complete::u32)),
-            complete::line_ending,
-            tag("Distance:").precedes(complete::multispace1).precedes(separated_list1(complete::multispace1, complete::u32)),
-        )
-            .map(|(times, distances)| Self { times, distances })
-            .parse(input)
-    }
 }
 
 pub fn get_number_of_ways(time: u32, distance: u64) -> u32 {
@@ -37,8 +24,14 @@ pub fn get_number_of_ways(time: u32, distance: u64) -> u32 {
 }
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_pair(
+            tag("Time:").precedes(complete::multispace1).precedes(separated_list1(complete::multispace1, complete::u32)),
+            complete::line_ending,
+            tag("Distance:").precedes(complete::multispace1).precedes(separated_list1(complete::multispace1, complete::u32)),
+        )
+            .map(|(times, distances)| Self { times, distances })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {

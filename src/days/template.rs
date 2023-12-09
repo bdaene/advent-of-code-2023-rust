@@ -1,3 +1,6 @@
+use nom::{IResult, Parser};
+use nom::character::complete;
+
 use crate::PuzzleBase;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -5,9 +8,12 @@ pub struct Puzzle {
     data: String,
 }
 
+
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle { data: String::from(data) }
+    fn parse(input: &str) -> IResult<&str, Self> {
+        complete::not_line_ending
+            .map(|data| Self { data: String::from(data) })
+            .parse(input)
     }
 }
 

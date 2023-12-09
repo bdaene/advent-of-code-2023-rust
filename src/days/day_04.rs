@@ -19,17 +19,6 @@ pub struct Card {
     numbers: Vec<u32>,
 }
 
-impl Puzzle {
-    fn parse(input: &str) -> IResult<&str, Self> {
-        separated_list1(
-            complete::line_ending,
-            Card::parse,
-        )
-            .map(|cards| Self { cards })
-            .parse(input)
-    }
-}
-
 impl Card {
     fn parse(input: &str) -> IResult<&str, Self> {
         separated_pair(
@@ -61,8 +50,13 @@ impl Card {
 
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_list1(
+            complete::line_ending,
+            Card::parse,
+        )
+            .map(|cards| Self { cards })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {

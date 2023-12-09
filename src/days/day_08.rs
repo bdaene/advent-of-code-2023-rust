@@ -24,33 +24,6 @@ enum Instruction {
 }
 
 impl Puzzle {
-    fn parse(input: &str) -> IResult<&str, Self> {
-        separated_pair(
-            many1(Instruction::parse),
-            tuple((complete::line_ending, complete::line_ending)),
-            separated_list1(
-                complete::line_ending,
-                separated_pair(
-                    complete::alphanumeric1,
-                    tag(" = "),
-                    tuple((
-                        tag("("), complete::alphanumeric1, tag(", "), complete::alphanumeric1, tag(")"))),
-                ),
-            ),
-        )
-            .map(|(instructions, nodes)| {
-                let mut network = HashMap::new();
-                nodes.iter().for_each(|(node, (_, left, _, right, _))| {
-                    network.insert(node.to_string(), (left.to_string(), right.to_string()));
-                });
-                Self {
-                    instructions,
-                    network,
-                }
-            })
-            .parse(input)
-    }
-
     fn get_cycle_length(&self, start: &str) -> usize {
         let mut node = start;
         let mut instructions = self.instructions.iter().cycle();
@@ -78,8 +51,31 @@ impl Instruction {
 }
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_pair(
+            many1(Instruction::parse),
+            tuple((complete::line_ending, complete::line_ending)),
+            separated_list1(
+                complete::line_ending,
+                separated_pair(
+                    complete::alphanumeric1,
+                    tag(" = "),
+                    tuple((
+                        tag("("), complete::alphanumeric1, tag(", "), complete::alphanumeric1, tag(")"))),
+                ),
+            ),
+        )
+            .map(|(instructions, nodes)| {
+                let mut network = HashMap::new();
+                nodes.iter().for_each(|(node, (_, left, _, right, _))| {
+                    network.insert(node.to_string(), (left.to_string(), right.to_string()));
+                });
+                Self {
+                    instructions,
+                    network,
+                }
+            })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {

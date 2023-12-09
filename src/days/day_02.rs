@@ -1,8 +1,9 @@
+use nom::{IResult, Parser};
 use nom::branch::alt;
+use nom::bytes::complete::tag;
 use nom::character::complete;
 use nom::multi::separated_list1;
 use nom::sequence::separated_pair;
-use nom::{bytes::complete::tag, IResult, Parser};
 use nom_supreme::ParserExt;
 
 use crate::PuzzleBase;
@@ -81,8 +82,8 @@ impl Game {
         self.cube_subsets
             .iter()
             .all(|cube_subset| {
-            cube_subset.red <= 12 && cube_subset.green <= 13 && cube_subset.blue <= 14
-        })
+                cube_subset.red <= 12 && cube_subset.green <= 13 && cube_subset.blue <= 14
+            })
     }
 
     fn get_min_cube_subset(&self) -> CubeSubset {
@@ -96,17 +97,11 @@ impl Game {
     }
 }
 
-impl Puzzle {
+impl PuzzleBase for Puzzle {
     fn parse(input: &str) -> IResult<&str, Self> {
         separated_list1(complete::line_ending, Game::parse)
             .map(|games| Self { games })
             .parse(input)
-    }
-}
-
-impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Self::parse(data).unwrap().1
     }
 
     fn part_1(&self) -> String {

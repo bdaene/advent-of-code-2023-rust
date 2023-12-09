@@ -1,8 +1,13 @@
+use nom::{IResult, Parser};
+use nom::bytes::complete::take_till1;
+use nom::character::complete;
+use nom::multi::separated_list1;
+
 use crate::PuzzleBase;
 
 #[derive(PartialEq, Debug)]
 pub struct Puzzle {
-    document: Vec<String>,
+    lines: Vec<String>,
 }
 
 const DIGITS_NAME: [&str; 18] = [
@@ -48,17 +53,21 @@ fn get_last_digit(line: &str) -> Option<u32> {
 }
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        let lines = data
-            .lines()
-            .map(|s| String::from(s))
-            .collect();
-
-        Puzzle { document: lines }
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_list1(
+            complete::line_ending,
+            take_till1(|c| "\r\n".contains(c)),
+        )
+            .map(|lines| Self {
+                lines: lines.into_iter()
+                    .map(|line: &str| String::from(line))
+                    .collect()
+            })
+            .parse(input)
     }
 
     fn part_1(&self) -> String {
-        self.document.iter()
+        self.lines.iter()
             .map(|line| {
                 let digits: Vec<u32> = line.chars()
                     .filter_map(|c| c.to_digit(10))
@@ -69,7 +78,7 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_2(&self) -> String {
-        self.document.iter()
+        self.lines.iter()
             .map(|line| {
                 get_first_digit(line).unwrap() * 10 + get_last_digit(line).unwrap()
             })
@@ -104,7 +113,7 @@ mod test {
         assert_eq!(
             solution,
             Puzzle {
-                document: vec![
+                lines: vec![
                     String::from("1abc2"),
                     String::from("pqr3stu8vwx"),
                     String::from("a1b2c3d4e5f"),

@@ -33,27 +33,6 @@ struct Slice {
     length: u32,
 }
 
-impl Puzzle {
-    fn parse(input: &str) -> IResult<&str, Self> {
-        separated_pair(
-            tag("seeds: ").precedes(
-                separated_list1(
-                    complete::space1,
-                    complete::u32,
-                )
-            ),
-            tuple((complete::line_ending, complete::line_ending)),
-            separated_list1(
-                tuple((complete::line_ending, complete::line_ending)),
-                Map::parse,
-            ),
-        )
-            .map(|(seeds, maps)| Self { seeds, maps })
-            .parse(input)
-    }
-}
-
-
 impl Map {
     fn parse(input: &str) -> IResult<&str, Self> {
         separated_pair(
@@ -154,10 +133,23 @@ impl Slice {
 }
 
 impl PuzzleBase for Puzzle {
-    fn new(data: &str) -> Self {
-        Puzzle::parse(data).unwrap().1
+    fn parse(input: &str) -> IResult<&str, Self> {
+        separated_pair(
+            tag("seeds: ").precedes(
+                separated_list1(
+                    complete::space1,
+                    complete::u32,
+                )
+            ),
+            tuple((complete::line_ending, complete::line_ending)),
+            separated_list1(
+                tuple((complete::line_ending, complete::line_ending)),
+                Map::parse,
+            ),
+        )
+            .map(|(seeds, maps)| Self { seeds, maps })
+            .parse(input)
     }
-
     fn part_1(&self) -> String {
         self.seeds.iter()
             .map(|&seed| {

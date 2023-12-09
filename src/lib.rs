@@ -1,7 +1,17 @@
+use nom::character::complete;
+use nom::{IResult, Parser};
+use nom::sequence::terminated;
+
 pub mod days;
 
 pub trait PuzzleBase {
     fn new(data: &str) -> Self
+        where
+            Self: Sized {
+        terminated(Self::parse, complete::line_ending).parse(data).unwrap().1
+    }
+
+    fn parse(input: &str) -> IResult<&str, Self>
         where
             Self: Sized;
 
