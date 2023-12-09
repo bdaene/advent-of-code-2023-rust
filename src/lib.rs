@@ -39,3 +39,12 @@ pub fn get_puzzle(day: u8, data: &str) -> Box<dyn PuzzleBase> {
         _ => panic!("Invalid day"),
     }
 }
+
+pub fn solve_all_puzzles(data: &Vec<String>) -> Vec<(String, String)> {
+    data.iter().enumerate()
+        .map(|(day, day_data)| {
+            let puzzle = get_puzzle((day + 1) as u8, day_data);
+            (puzzle.part_1(), puzzle.part_2())
+        })
+        .collect()
+}
