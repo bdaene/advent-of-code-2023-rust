@@ -23,16 +23,16 @@ impl Puzzle {
 }
 
 fn get_next(sequence: &Vec<i32>) -> i32 {
-    let mut endings = vec![];
+    let mut result = 0;
     let mut sequence = sequence.to_vec();
-    while !sequence.is_empty() {
-        endings.push(*sequence.last().unwrap());
+    while let Some(ending) = sequence.last() {
+        result += ending;
         sequence = sequence.iter()
             .zip(sequence.iter().skip(1))
             .map(|(a,b)| b-a)
             .collect();
     }
-    endings.iter().sum::<i32>()
+    result
 }
 
 impl PuzzleBase for Puzzle {
