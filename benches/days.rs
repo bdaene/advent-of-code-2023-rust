@@ -20,7 +20,7 @@ fn benchmark_day(criterion: &mut Criterion, day: u8) {
 }
 
 fn benchmark(criterion: &mut Criterion) {
-    (1..=8).for_each(|day| benchmark_day(criterion, day));
+    (1..=9).for_each(|day| benchmark_day(criterion, day));
 }
 
 criterion_group!(benches, benchmark);
