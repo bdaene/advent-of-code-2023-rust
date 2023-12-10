@@ -61,41 +61,15 @@ impl PuzzleBase for Puzzle {
             let mut left = 0;
             let mut inside = false;
             while left < loop_row.len() {
-                let (inside_, right) = match loop_row[left].1 {
-                    Tile::NS => (!inside, left),
-                    Tile::NE => {
-                        let mut right = left + 1;
-                        while loop_row[right].1 == Tile::WE {
-                            right += 1
-                        };
-                        (
-                            match loop_row[right].1 {
-                                Tile::NW => inside,
-                                Tile::SW => !inside,
-                                _ => panic!("We should be coming from west!")
-                            }, right)
-                    }
-                    Tile::SE => {
-                        let mut right = left + 1;
-                        while loop_row[right].1 == Tile::WE {
-                            right += 1
-                        };
-                        (
-                            match loop_row[right].1 {
-                                Tile::NW => !inside,
-                                Tile::SW => inside,
-                                _ => panic!("We should be coming from west!")
-                            }, right)
-                    }
-                    tile => panic!("Unexpected first tile on the loop row {:?}", tile)
-                };
+                let (cut, right) = get_cut(&loop_row, left);
+                inside ^= cut;
+
                 if let Some((position, _)) = loop_row.get(right + 1) {
-                    if inside_ {
+                    if inside {
                         total += position.1 - loop_row[right].0.1 - 1;
                     }
                 }
-                left = right + 1;
-                inside = inside_
+                left = right+1;
             }
         }
 
@@ -175,7 +149,6 @@ impl Puzzle {
 
         map
     }
-
 }
 
 impl Tile {
@@ -248,6 +221,24 @@ impl Direction {
     }
 }
 
+fn get_cut(loop_row: &[(Position, Tile)], start: usize) -> (bool, usize) {
+    if loop_row[start].1 == Tile::NS {
+        return (true, start);
+    }
+
+    let length = loop_row[start..].iter().enumerate().skip(1)
+        .filter(|(_, (_, tile))| *tile != Tile::WE)
+        .next()
+        .expect("The cut should end.")
+        .0;
+
+    let end = start + length;
+    let cut = (loop_row[start].1 == Tile::NE && loop_row[end].1 == Tile::SW)
+        || (loop_row[start].1 == Tile::SE && loop_row[end].1 == Tile::NW);
+
+    (cut, end)
+}
+
 #[cfg(test)]
 mod test {
     use std::fs;
@@ -289,5 +280,55 @@ mod test {
     fn part_2() {
         assert_eq!(get_puzzle(2).part_2(), "4");
         assert_eq!(get_puzzle(3).part_2(), "10");
+    }
+
+    #[test]
+    fn test_get_cut() {
+        assert_eq!(
+            get_cut(&vec![
+                (Position(0, 0), Tile::NS)
+            ], 0),
+            (true, 0)
+        );
+
+        assert_eq!(
+            get_cut(&vec![
+                (Position(0, 0), Tile::NE),
+                (Position(0, 1), Tile::WE),
+                (Position(0, 2), Tile::SW),
+            ], 0),
+            (true, 2)
+        );
+
+        assert_eq!(
+            get_cut(&vec![
+                (Position(0, 0), Tile::SE),
+                (Position(0, 1), Tile::WE),
+                (Position(0, 2), Tile::WE),
+                (Position(0, 3), Tile::SW),
+            ], 0),
+            (false, 3
+
+            )
+        );
+
+        assert_eq!(
+            get_cut(&vec![
+                (Position(0, 0), Tile::SE),
+                (Position(0, 1), Tile::SW),
+            ], 0),
+            (false, 1)
+        );
+
+        assert_eq!(
+            get_cut(&vec![
+                (Position(4, 3), Tile::NS),
+                (Position(4, 5), Tile::NE),
+                (Position(4, 6), Tile::WE),
+                (Position(4, 7), Tile::SW),
+                (Position(4, 6), Tile::NS),
+            ], 1),
+            (true, 3)
+        );
     }
 }
