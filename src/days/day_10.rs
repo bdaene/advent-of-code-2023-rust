@@ -53,7 +53,10 @@ impl PuzzleBase for Puzzle {
         let map = self.replace_start();
         let mut loop_by_row = vec![vec![]; map.len()];
         for position in path {
-            loop_by_row[position.0].push((position, map[position.0][position.1]));
+            let tile = map[position.0][position.1];
+            if tile != Tile::WE {
+                loop_by_row[position.0].push((position, tile));
+            }
         }
         let mut total = 0;
         for mut loop_row in loop_by_row {
@@ -61,19 +64,24 @@ impl PuzzleBase for Puzzle {
             let mut left = 0;
             let mut inside = false;
             while left < loop_row.len() {
-                let (cut, right) = get_cut(&loop_row, left);
-                inside ^= cut;
-
-                if let Some((position, _)) = loop_row.get(right + 1) {
-                    if inside {
-                        total += position.1 - loop_row[right].0.1 - 1;
-                    }
+                if inside {
+                    total += loop_row[left].0.1 - loop_row[left - 1].0.1 - 1
                 }
-                left = right+1;
+
+                let tile = loop_row[left].1;
+                if tile == Tile::NS {
+                    inside = !inside;
+                    left += 1;
+                } else {
+                    let tile_right = loop_row[left + 1].1;
+                    if (tile == Tile::NE && tile_right == Tile::SW)
+                        || (tile == Tile::SE && tile_right == Tile::NW) {
+                        inside = !inside;
+                    }
+                    left += 2;
+                }
             }
         }
-
-
         total.to_string()
     }
 }
@@ -221,23 +229,6 @@ impl Direction {
     }
 }
 
-fn get_cut(loop_row: &[(Position, Tile)], start: usize) -> (bool, usize) {
-    if loop_row[start].1 == Tile::NS {
-        return (true, start);
-    }
-
-    let length = loop_row[start..].iter().enumerate().skip(1)
-        .filter(|(_, (_, tile))| *tile != Tile::WE)
-        .next()
-        .expect("The cut should end.")
-        .0;
-
-    let end = start + length;
-    let cut = (loop_row[start].1 == Tile::NE && loop_row[end].1 == Tile::SW)
-        || (loop_row[start].1 == Tile::SE && loop_row[end].1 == Tile::NW);
-
-    (cut, end)
-}
 
 #[cfg(test)]
 mod test {
@@ -280,55 +271,5 @@ mod test {
     fn part_2() {
         assert_eq!(get_puzzle(2).part_2(), "4");
         assert_eq!(get_puzzle(3).part_2(), "10");
-    }
-
-    #[test]
-    fn test_get_cut() {
-        assert_eq!(
-            get_cut(&vec![
-                (Position(0, 0), Tile::NS)
-            ], 0),
-            (true, 0)
-        );
-
-        assert_eq!(
-            get_cut(&vec![
-                (Position(0, 0), Tile::NE),
-                (Position(0, 1), Tile::WE),
-                (Position(0, 2), Tile::SW),
-            ], 0),
-            (true, 2)
-        );
-
-        assert_eq!(
-            get_cut(&vec![
-                (Position(0, 0), Tile::SE),
-                (Position(0, 1), Tile::WE),
-                (Position(0, 2), Tile::WE),
-                (Position(0, 3), Tile::SW),
-            ], 0),
-            (false, 3
-
-            )
-        );
-
-        assert_eq!(
-            get_cut(&vec![
-                (Position(0, 0), Tile::SE),
-                (Position(0, 1), Tile::SW),
-            ], 0),
-            (false, 1)
-        );
-
-        assert_eq!(
-            get_cut(&vec![
-                (Position(4, 3), Tile::NS),
-                (Position(4, 5), Tile::NE),
-                (Position(4, 6), Tile::WE),
-                (Position(4, 7), Tile::SW),
-                (Position(4, 6), Tile::NS),
-            ], 1),
-            (true, 3)
-        );
     }
 }
