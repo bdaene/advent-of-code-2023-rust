@@ -4,7 +4,7 @@ use criterion::{black_box, Criterion, criterion_group, criterion_main};
 
 use advent_of_code_2023_rust::{get_puzzle, solve_all_puzzles};
 
-const DAYS: u8 = 9;
+const DAYS: u8 = 10;
 
 fn benchmark_all_days(criterion: &mut Criterion) {
     let all_data = (1..=DAYS).into_iter().map(|day| {
