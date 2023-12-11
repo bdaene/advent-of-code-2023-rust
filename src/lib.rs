@@ -36,6 +36,7 @@ pub fn get_puzzle(day: u8, data: &str) -> Box<dyn PuzzleBase> {
         08 => Box::new(days::day_08::Puzzle::new(data)),
         09 => Box::new(days::day_09::Puzzle::new(data)),
         10 => Box::new(days::day_10::Puzzle::new(data)),
+        11 => Box::new(days::day_11::Puzzle::new(data)),
 
         _ => panic!("Invalid day"),
     }
