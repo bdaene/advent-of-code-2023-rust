@@ -69,14 +69,13 @@ impl Puzzle {
         let galaxies = self.get_galaxies();
         let (expanded_rows, expanded_cols) = self.get_expanded_coordinates(&galaxies, factor);
 
-        galaxies.iter().enumerate()
-            .flat_map(|(i, galaxy_1)| galaxies.iter().skip(i + 1).map(
-                |galaxy_2| {
-                    expanded_rows[galaxy_1.row].abs_diff(expanded_rows[galaxy_2.row])
-                        + expanded_cols[galaxy_1.col].abs_diff(expanded_cols[galaxy_2.col])
-                }
-            ))
-            .sum::<usize>()
+        let mut expanded_galaxies_row: Vec<usize> = galaxies.iter().map(|galaxy| expanded_rows[galaxy.row]).collect();
+        let total_row_distance = get_total_distance(&mut expanded_galaxies_row);
+
+        let mut expanded_galaxies_col: Vec<usize> = galaxies.iter().map(|galaxy| expanded_cols[galaxy.col]).collect();
+        let total_col_distance = get_total_distance(&mut expanded_galaxies_col);
+
+        total_row_distance + total_col_distance
     }
 }
 
@@ -89,6 +88,19 @@ fn expand(empty: &[usize], factor: usize) -> Vec<usize> {
         offset += 1 + x * (factor - 1);
     });
     expanded
+}
+
+fn get_total_distance(coordinates: &mut [usize]) -> usize {
+    coordinates.sort_unstable();
+
+    let mut total_distance = 0;
+    let mut current_sum = 0;
+    coordinates.iter().enumerate().for_each(|(i, coordinate)| {
+        total_distance += i * coordinate - current_sum;
+        current_sum += coordinate;
+    });
+
+    total_distance
 }
 
 #[cfg(test)]
@@ -133,9 +145,11 @@ mod test {
     }
 
     #[test]
-    fn part_2() {
+    fn get_total_galaxies_distance() {
         let puzzle = get_puzzle();
 
-        assert_eq!(puzzle.part_2(), "Not implemented yet.");
+        assert_eq!(puzzle.get_total_galaxies_distance(2), 374);
+        assert_eq!(puzzle.get_total_galaxies_distance(10), 1030);
+        assert_eq!(puzzle.get_total_galaxies_distance(100), 8410);
     }
 }
