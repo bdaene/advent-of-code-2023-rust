@@ -97,16 +97,23 @@ fn count_possible_arrangements(springs: &[SpringState], groups: &[usize]) -> usi
     }
 
     for (i, &group) in groups.iter().enumerate() {
+        let mut group_length = 0;
         for (j, &spring) in springs.iter().enumerate() {
             if spring != SpringState::Damaged {
-                count[i+1][j+1] += count[i+1][j]
+                count[i + 1][j + 1] += count[i + 1][j]
             }
 
-            if j+1 >= group && springs[j+1-group..=j].iter().all(|&spring_| spring_ != SpringState::Operational) {
-                if j+1 == group {
-                    count[i+1][j+1] += count[i][j+1-group];
-                } else if springs[j-group] != SpringState::Damaged {
-                    count[i+1][j+1] += count[i][j-group];
+            if spring == SpringState::Operational {
+                group_length = 0;
+                continue;
+            }
+
+            group_length += 1;
+            if group_length >= group {
+                if j + 1 == group {
+                    count[i + 1][j + 1] += count[i][j + 1 - group];
+                } else if springs[j - group] != SpringState::Damaged {
+                    count[i + 1][j + 1] += count[i][j - group];
                 }
             }
         }
