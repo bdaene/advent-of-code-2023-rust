@@ -37,14 +37,14 @@ impl PuzzleBase for Puzzle {
 
     fn part_1(&self) -> String {
         self.patterns.iter()
-            .map(|pattern| pattern.get_symmetry_value().unwrap())
+            .map(|pattern| get_symmetry_value(&pattern.ground, 0))
             .sum::<usize>()
             .to_string()
     }
 
     fn part_2(&self) -> String {
         self.patterns.iter()
-            .map(|pattern| pattern.get_smudged_symmetry_value().unwrap())
+            .map(|pattern| get_symmetry_value(&pattern.ground, 1))
             .sum::<usize>()
             .to_string()
     }
@@ -62,70 +62,50 @@ impl Pattern {
             .map(|ground| Self { ground })
             .parse(input)
     }
+}
 
-    fn get_symmetry_value(&self) -> Option<usize> {
-        if let Some(symmetry_value) = get_all_symmetry_values(&self.ground).first() {
-            return Some(*symmetry_value);
-        }
-        None
+
+fn get_symmetry_value(ground: &Vec<Vec<GroundType>>, smudge: usize) -> usize {
+    if let Some(vertical_axis) = (0..ground[0].len() - 1)
+        .filter(|&axis| count_horizontal_differences(&ground, axis) == smudge)
+        .next() {
+        return vertical_axis + 1;
     }
 
-    fn get_smudged_symmetry_value(&self) -> Option<usize> {
-        let mut ground = self.ground.to_vec();
-        let known_symmetries = get_all_symmetry_values(&ground);
+    let ground = transpose(ground);
 
-        for row in 0..ground.len() {
-            for col in 0..ground[row].len() {
-                ground[row][col] = ground[row][col].opposite();
-                let symmetries = get_all_symmetry_values(&ground);
-                if let Some(symmetry_value) = symmetries.iter()
-                    .filter(|symmetry| !known_symmetries.contains(symmetry))
-                    .next() {
-                    return Some(*symmetry_value);
-                }
-                ground[row][col] = ground[row][col].opposite();
-            }
-        }
-        None
+    if let Some(horizontal_axis) = (0..ground[0].len() - 1)
+        .filter(|&axis| count_horizontal_differences(&ground, axis) == smudge)
+        .next() {
+        return 100 * (horizontal_axis + 1);
     }
+
+    panic!("No symmetries found for {ground:?}");
 }
 
-fn get_all_symmetry_values(ground: &Vec<Vec<GroundType>>) -> Vec<usize> {
-    let mut symmetries: Vec<usize> = Vec::new();
 
-    symmetries.extend((0..ground.len() - 1)
-        .filter(|&symmetry_row| is_vertically_symmetric(ground, symmetry_row))
-        .map(|row| (row + 1) * 100));
-
-    symmetries.extend((0..ground[0].len() - 1)
-        .filter(|&symmetry_col| is_horizontally_symmetric(ground, symmetry_col))
-        .map(|col| col + 1));
-
-    symmetries
+fn transpose<T>(grid: &Vec<Vec<T>>) -> Vec<Vec<T>>
+    where T: Copy
+{
+    (0..grid[0].len())
+        .map(|col| grid.iter().map(|line| line[col]).collect())
+        .collect()
 }
 
-fn is_vertically_symmetric(ground: &Vec<Vec<GroundType>>, symmetry_row: usize) -> bool {
-    (0..(symmetry_row + 1).min(ground.len() - symmetry_row - 1)).all(
-        |offset| ground[symmetry_row - offset].iter()
-            .zip(ground[symmetry_row + offset + 1].iter())
-            .all(|(&ground_above, &ground_below)| ground_above == ground_below)
-    )
+fn count_horizontal_differences<T>(grid: &Vec<Vec<T>>, axis: usize) -> usize
+    where T: PartialEq
+{
+    grid.iter()
+        .map(|row| count_differences(row, axis))
+        .sum::<usize>()
 }
 
-fn is_horizontally_symmetric(ground: &Vec<Vec<GroundType>>, symmetry_col: usize) -> bool {
-    (0..(symmetry_col + 1).min(ground[0].len() - symmetry_col - 1)).all(
-        |offset| (0..ground.len())
-            .all(|row| ground[row][symmetry_col - offset] == ground[row][symmetry_col + offset + 1])
-    )
-}
-
-impl GroundType {
-    fn opposite(&self) -> GroundType {
-        match self {
-            GroundType::Ash => GroundType::Rocks,
-            GroundType::Rocks => GroundType::Ash,
-        }
-    }
+fn count_differences<T>(vector: &[T], axis: usize) -> usize
+    where T: PartialEq
+{
+    (0..(axis + 1).min(vector.len() - axis - 1))
+        .filter(|offset| vector[axis - offset] != vector[axis + offset + 1])
+        .count()
 }
 
 #[cfg(test)]
