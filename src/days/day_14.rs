@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use nom::{IResult, Parser};
 use nom::branch::alt;
@@ -9,9 +10,11 @@ use nom_supreme::tag::complete::tag;
 
 use crate::PuzzleBase;
 
+type Platform = Vec<Vec<Rock>>;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Puzzle {
-    lines: Vec<Vec<Rock>>,
+    platform: Platform,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
@@ -19,13 +22,6 @@ enum Rock {
     Round,
     Cube,
     Empty,
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-struct Position {
-    row: usize,
-    col: usize,
-    rock: Rock,
 }
 
 
@@ -39,18 +35,18 @@ impl PuzzleBase for Puzzle {
                 tag(".").value(Rock::Empty),
             ))),
         )
-            .map(|lines| Self { lines })
+            .map(|platform| Self { platform })
             .parse(input)
     }
 
     fn part_1(&self) -> String {
-        let mut offsets = vec![0usize; self.lines[0].len()];
+        let mut offsets = vec![0; self.platform[0].len()];
 
         let mut total = 0;
-        for (row, line) in self.lines.iter().enumerate() {
+        for (row, line) in self.platform.iter().enumerate() {
             for (col, &rock) in line.iter().enumerate() {
                 if rock == Rock::Round {
-                    total += self.lines.len() - offsets[col];
+                    total += self.platform.len() - offsets[col];
                     offsets[col] += 1;
                 } else if rock == Rock::Cube {
                     offsets[col] = row + 1;
@@ -62,130 +58,152 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_2(&self) -> String {
-        let mut positions: Vec<Position> = self.lines.iter().enumerate()
-            .flat_map(|(row, line)| line.iter().enumerate()
-                .map(move |(col, &rock)| Position { row, col, rock })
-            )
-            .filter(|position| position.rock != Rock::Empty)
-            .collect();
+        let mut platform = self.platform.to_vec();
 
-        let (height, width) = (self.lines.len(), self.lines[0].len());
-        let mut known_positions: HashMap<Vec<Position>, usize> = HashMap::new();
+        let mut known_platforms = HashMap::new();
         for cycle in 0..1_000_000_000 {
-            if let Some(previous_cycle) = known_positions.insert(positions.clone(), cycle) {
+            if let Some(previous_cycle) = known_platforms.insert(compute_hash(&platform), cycle) {
                 let cycle_length = cycle - previous_cycle;
                 for _ in 0..((1_000_000_000 - cycle) % cycle_length) {
-                    positions = cycle_directions(positions.to_vec(), height, width)
+                    platform = cycle_tilts(&platform)
                 }
                 break;
             }
-            let mut new_positions = cycle_directions(positions.to_vec(), height, width);
-            new_positions.sort_unstable_by_key(|position| (position.row, position.col));
-            positions = new_positions
+            platform = cycle_tilts(&platform)
         }
 
-        get_north_load(&positions, height).to_string()
+        get_north_load(&platform).to_string()
     }
 }
 
-fn tilt_north(mut positions: Vec<Position>, height: usize, width: usize) -> Vec<Position> {
-    positions.sort_unstable_by_key(|position| position.row);
-    debug_assert!(positions.iter().all(|position| (0..height).contains(&position.row) && (0..width).contains(&position.col)));
+fn compute_hash(platform: &Platform) -> usize {
+    platform.iter().enumerate()
+        .flat_map(|(row, line)| line.iter().enumerate()
+            .map(move |(col, rock)| match rock {
+                Rock::Round => (row << 24) + col,
+                _ => 0
+            })
+        )
+        .sum()
+}
+
+fn tilt_north(platform: &Platform) -> Platform {
+    let (height, width) = (platform.len(), platform[0].len());
+    let mut tilted_platform = vec![vec![Rock::Empty; width]; height];
 
     let mut offsets = vec![0; width];
+    for row in 0..width {
+        for col in 0..height {
+            match platform[row][col] {
+                Rock::Empty => (),
+                Rock::Cube => {
+                    tilted_platform[row][col] = Rock::Cube;
+                    offsets[col] = row + 1;
+                }
+                Rock::Round => {
+                    tilted_platform[offsets[col]][col] = Rock::Round;
+                    offsets[col] += 1;
+                }
+            }
+        }
+    }
 
-    positions.into_iter().map(|position| match position.rock {
-        Rock::Cube => {
-            offsets[position.col] = position.row + 1;
-            position
-        }
-        Rock::Round => {
-            offsets[position.col] += 1;
-            Position { row: offsets[position.col] - 1, ..position }
-        }
-        Rock::Empty => position
-    })
-        .collect()
+    tilted_platform
 }
 
-fn tilt_south(mut positions: Vec<Position>, height: usize, width: usize) -> Vec<Position> {
-    positions.sort_unstable_by_key(|position| position.row);
-    positions.reverse();
-    debug_assert!(positions.iter().all(|position| (0..height).contains(&position.row) && (0..width).contains(&position.col)));
-
-    let mut offsets = vec![height; width];
-
-    positions.into_iter().map(|position| match position.rock {
-        Rock::Cube => {
-            offsets[position.col] = position.row;
-            position
-        }
-        Rock::Round => {
-            offsets[position.col] -= 1;
-            Position { row: offsets[position.col], ..position }
-        }
-        Rock::Empty => position
-    })
-        .collect()
-}
-
-fn tilt_west(mut positions: Vec<Position>, height: usize, width: usize) -> Vec<Position> {
-    positions.sort_unstable_by_key(|position| position.col);
-    debug_assert!(positions.iter().all(|position| (0..height).contains(&position.row) && (0..width).contains(&position.col)));
+fn tilt_west(platform: &Platform) -> Platform {
+    let (height, width) = (platform.len(), platform[0].len());
+    let mut tilted_platform = vec![vec![Rock::Empty; width]; height];
 
     let mut offsets = vec![0; height];
+    for col in 0..width {
+        for row in 0..height {
+            match platform[row][col] {
+                Rock::Empty => (),
+                Rock::Cube => {
+                    tilted_platform[row][col] = Rock::Cube;
+                    offsets[row] = col + 1;
+                }
+                Rock::Round => {
+                    tilted_platform[row][offsets[row]] = Rock::Round;
+                    offsets[row] += 1;
+                }
+            }
+        }
+    }
 
-    positions.into_iter().map(|position| match position.rock {
-        Rock::Cube => {
-            offsets[position.row] = position.col + 1;
-            position
-        }
-        Rock::Round => {
-            offsets[position.row] += 1;
-            Position { col: offsets[position.row] - 1, ..position }
-        }
-        Rock::Empty => position
-    })
-        .collect()
+    tilted_platform
 }
 
-fn tilt_east(mut positions: Vec<Position>, height: usize, width: usize) -> Vec<Position> {
-    positions.sort_unstable_by_key(|position| position.col);
-    positions.reverse();
-    debug_assert!(positions.iter().all(|position| (0..height).contains(&position.row) && (0..width).contains(&position.col)));
+fn tilt_south(platform: &Platform) -> Platform {
+    let (height, width) = (platform.len(), platform[0].len());
+    let mut tilted_platform = vec![vec![Rock::Empty; width]; height];
+
+    let mut offsets = vec![height; width];
+    for row in (0..width).rev() {
+        for col in 0..height {
+            match platform[row][col] {
+                Rock::Empty => (),
+                Rock::Cube => {
+                    tilted_platform[row][col] = Rock::Cube;
+                    offsets[col] = row;
+                }
+                Rock::Round => {
+                    offsets[col] -= 1;
+                    tilted_platform[offsets[col]][col] = Rock::Round;
+                }
+            }
+        }
+    }
+
+    tilted_platform
+}
+
+fn tilt_east(platform: &Platform) -> Platform {
+    let (height, width) = (platform.len(), platform[0].len());
+    let mut tilted_platform = vec![vec![Rock::Empty; width]; height];
 
     let mut offsets = vec![width; height];
-
-    positions.into_iter().map(|position| match position.rock {
-        Rock::Cube => {
-            offsets[position.row] = position.col;
-            position
+    for col in (0..height).rev() {
+        for row in 0..width {
+            match platform[row][col] {
+                Rock::Empty => (),
+                Rock::Cube => {
+                    tilted_platform[row][col] = Rock::Cube;
+                    offsets[row] = col;
+                }
+                Rock::Round => {
+                    offsets[row] -= 1;
+                    tilted_platform[row][offsets[row]] = Rock::Round;
+                }
+            }
         }
-        Rock::Round => {
-            offsets[position.row] -= 1;
-            Position { col: offsets[position.row], ..position }
-        }
-        Rock::Empty => position
-    })
-        .collect()
+    }
+
+    tilted_platform
 }
 
-fn cycle_directions(mut positions: Vec<Position>, height: usize, width: usize) -> Vec<Position> {
-    positions = tilt_north(positions, height, width);
-    positions = tilt_west(positions, height, width);
-    positions = tilt_south(positions, height, width);
-    positions = tilt_east(positions, height, width);
-    positions
+fn cycle_tilts(platform: &Platform) -> Platform {
+    let platform = tilt_north(&platform);
+    let platform = tilt_west(&platform);
+    let platform = tilt_south(&platform);
+    let platform = tilt_east(&platform);
+    platform
 }
 
-fn get_north_load(positions: &Vec<Position>, height: usize) -> usize {
-    positions.iter()
-        .map(|position| match position.rock {
-            Rock::Round => height - position.row,
-            _ => 0,
-        })
-        .sum::<usize>()
+
+fn get_north_load(platform: &Platform) -> usize {
+    let height = platform.len();
+    platform.iter().enumerate()
+        .flat_map(|(row, line)| line.iter()
+            .map(move |rock| match rock {
+                Rock::Round => height - row,
+                _ => 0,
+            })
+        )
+        .sum()
 }
+
 
 #[cfg(test)]
 mod test {
@@ -206,7 +224,7 @@ mod test {
         let puzzle = get_puzzle();
 
         assert_eq!(puzzle, Puzzle {
-            lines: vec![
+            platform: vec![
                 vec![Rock::Round, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Cube, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Empty],
                 vec![Rock::Round, Rock::Empty, Rock::Round, Rock::Round, Rock::Cube, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Cube],
                 vec![Rock::Empty, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Empty, Rock::Cube, Rock::Cube, Rock::Empty, Rock::Empty, Rock::Empty],
