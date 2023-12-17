@@ -43,15 +43,13 @@ impl PuzzleBase for Puzzle {
 #[derive(Debug, Eq, PartialEq)]
 struct State {
     position: Position,
-    direction: Direction,
+    to_horizontal: bool,
     heat_loss: u32,
 }
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.heat_loss as usize + other.position.row + other.position.col).cmp(&(other.heat_loss as usize + self.position.row + self.position.col))
-            .then_with(|| self.heat_loss.cmp(&other.heat_loss))
-            .reverse()
+        other.heat_loss.cmp(&self.heat_loss)
     }
 }
 
@@ -62,26 +60,34 @@ impl PartialOrd for State {
 }
 
 impl State {
-    fn get_next_states(&self, grid: &Vec<Vec<u32>>, wobbly: &RangeInclusive<usize>) -> Vec<State> {
+    fn gen_positions(&self, direction: Direction, grid: &Vec<Vec<u32>>, wobbly: &RangeInclusive<usize>) -> Vec<(Position, u32)> {
         let (height, width) = (grid.len(), grid[0].len());
 
         let mut heat_loss = (1..*wobbly.start())
-            .filter_map(|distance| self.position.get_at(distance, self.direction, height, width))
+            .filter_map(|distance| self.position.get_at(distance, direction, height, width))
             .fold(
                 self.heat_loss,
                 |heat_loss, position| heat_loss + grid[position.row][position.col],
             );
 
-        let next_directions = self.direction.get_turns();
         wobbly.clone()
-            .filter_map(|distance| self.position.get_at(distance, self.direction, height, width))
+            .filter_map(|distance| self.position.get_at(distance, direction, height, width))
             .map(|position| {
                 heat_loss += grid[position.row][position.col];
                 (position, heat_loss)
             })
-            .flat_map(|(position, heat_loss)| next_directions.iter().copied()
-                .map(move |direction| Self { position, direction, heat_loss })
-            )
+            .collect()
+    }
+
+    fn get_next_states(&self, grid: &Vec<Vec<u32>>, wobbly: &RangeInclusive<usize>) -> Vec<Self> {
+        let directions = if self.to_horizontal {
+            [Direction::Left, Direction::Right]
+        } else {
+            [Direction::Up, Direction::Down]
+        };
+        directions.into_iter()
+            .flat_map(|direction| self.gen_positions(direction, grid, wobbly))
+            .map(|(position, heat_loss)| Self { position, to_horizontal: !self.to_horizontal, heat_loss })
             .collect()
     }
 }
@@ -111,31 +117,20 @@ enum Direction {
     Right,
 }
 
-impl Direction {
-    fn get_turns(&self) -> [Direction; 2] {
-        match self {
-            Direction::Right => [Direction::Up, Direction::Down],
-            Direction::Up => [Direction::Left, Direction::Right],
-            Direction::Left => [Direction::Down, Direction::Up],
-            Direction::Down => [Direction::Right, Direction::Left],
-        }
-    }
-}
-
 
 fn get_minimal_heat_loss(grid: &Vec<Vec<u32>>, wobbly: &RangeInclusive<usize>) -> u32 {
     let mut heap: BinaryHeap<State> = BinaryHeap::new();
-    heap.extend([Direction::Right, Direction::Down].into_iter()
-        .map(|direction| State { position: Position { row: 0, col: 0 }, heat_loss: 0, direction })
+    heap.extend([true, false].into_iter()
+        .map(|to_horizontal| State { position: Position { row: 0, col: 0 }, heat_loss: 0, to_horizontal })
     );
 
-    let (height, width) = (grid.len(), grid[0].len());
-    let mut seen: HashSet<(Position, Direction)> = HashSet::new();
+    let target = Position { row: grid.len() - 1, col: grid[0].len() - 1 };
+    let mut seen: HashSet<(Position, bool)> = HashSet::new();
     while let Some(state) = heap.pop() {
-        if !seen.insert((state.position, state.direction)) {
+        if !seen.insert((state.position, state.to_horizontal)) {
             continue;
         }
-        if state.position.row == height - 1 && state.position.col == width - 1 {
+        if state.position == target {
             return state.heat_loss;
         };
         heap.extend(state.get_next_states(grid, &wobbly).into_iter());
