@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use nom::{IResult, Parser};
 use nom::branch::alt;
 use nom::character::complete;
@@ -102,55 +100,38 @@ struct Vertex {
     to: Direction,
 }
 
-fn get_vertices(instructions: &Vec<Instruction>) -> Vec<Vertex> {
-    let (mut row, mut col) = (0, 0);
-    let mut direction = instructions.last().unwrap().direction;
-
-    instructions.iter()
-        .map(|instruction| {
-            let vertex = Vertex { row, col, from: direction, to: instruction.direction };
-            match instruction.direction {
-                Direction::Up => row -= instruction.length as isize,
-                Direction::Down => row += instruction.length as isize,
-                Direction::Left => col -= instruction.length as isize,
-                Direction::Right => col += instruction.length as isize,
-            };
-            direction = instruction.direction;
-            vertex
-        })
-        .collect()
-}
 
 fn compute_coverage(instructions: &Vec<Instruction>) -> u64 {
-    let perimeter = instructions.iter()
+    let perimeter: u32 = instructions.iter()
         .map(|instruction| instruction.length)
-        .sum::<u32>();
+        .sum();
 
-    let mut vertices = get_vertices(instructions);
-    vertices.sort_unstable_by_key(|vertex| (vertex.row, vertex.col));
-
-    let mut cols = BTreeSet::new();
-    let mut last_vertex = vertices[0];
-    let mut area = 0;
-
-    for vertex in vertices {
-        if vertex.row != last_vertex.row {
-            let total_cols = cols.iter().step_by(2).zip(cols.iter().skip(1).step_by(2))
-                .map(|(a, b)| (b - a ) as u64)
-                .sum::<u64>();
-            area += (vertex.row - last_vertex.row) as u64 * total_cols;
+    let mut last_position = (0, 0);
+    let area: i64 = instructions.iter().map(
+        |instruction| {
+            match instruction.direction {
+                Direction::Up => {
+                    last_position.0 -= instruction.length as i64;
+                    last_position.1 * instruction.length as i64
+                }
+                Direction::Down => {
+                    last_position.0 += instruction.length as i64;
+                    -last_position.1 * instruction.length as i64
+                }
+                Direction::Left => {
+                    last_position.1 -= instruction.length as i64;
+                    -last_position.0 * instruction.length as i64
+                }
+                Direction::Right => {
+                    last_position.1 += instruction.length as i64;
+                    last_position.0 * instruction.length as i64
+                }
+            }
         }
-        last_vertex = vertex;
+    )
+        .sum();
 
-        if vertex.from == Direction::Up || vertex.to == Direction::Down {
-            cols.insert(vertex.col);
-        }
-        if vertex.from == Direction::Down || vertex.to == Direction::Up {
-            cols.remove(&vertex.col);
-        }
-    }
-
-    area + perimeter as u64 / 2 + 1
+    (area.abs() as u64 + perimeter as u64) / 2 + 1
 }
 
 #[cfg(test)]
