@@ -49,7 +49,8 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_1(&self) -> String {
-        let (modules, mut states) = self.init();
+        let modules: HashMap<&str, &Module> = HashMap::from_iter(self.modules.iter().map(|module| (module.name.as_str(), module)));
+        let mut states = self.init_states();
 
         let (mut highs, mut lows) = (0usize, 0usize);
         for _ in 0..1000 {
@@ -68,59 +69,52 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_2(&self) -> String {
-        let zh = self.modules.iter().filter(|module| module.destinations.contains(&"rx".to_string())).next().unwrap();
-        let mut cycles:HashMap<&str, Option<usize>> = HashMap::from_iter(self.modules.iter().filter(|module| module.destinations.contains(&zh.name)).map(|module| (module.name.as_str(), None)));
+        let modules: HashMap<&str, &Module> = HashMap::from_iter(self.modules.iter().map(|module| (module.name.as_str(), module)));
 
-        let (modules, mut states) = self.init();
-        let mut button_push: usize = 0;
-        loop {
-            button_push += 1;
-            let mut pulses: VecDeque<(&str, &str, bool)> = VecDeque::from([("button", "broadcaster", false)]);
-            while let Some((source, destination, high)) = pulses.pop_front() {
-                if high && cycles.contains_key(source) {
-                    cycles.insert(source, Some(button_push));
-                    if cycles.values().all(|cycle| cycle.is_some()) {
-                        return cycles.values().map(|cycle| cycle.unwrap()).product::<usize>().to_string();
+        modules["broadcaster"].destinations.iter()
+            .map(|mut counter| {
+                let mut depth: usize = 0;
+                let mut limit: usize = 0;
+                while let Some(module) = modules.get(counter.as_str()) {
+                    if module.destinations.iter()
+                        .filter_map(|destination| modules.get(destination.as_str()))
+                        .any(|module| module.module_type == ModuleType::Conjunction) {
+                        limit |= 1 << depth;
+                    }
+                    depth += 1;
+                    if let Some(counter_) = module.destinations.iter()
+                        .filter_map(|destination| modules.get(destination.as_str()))
+                        .filter(|module| module.module_type == ModuleType::FlipFlop)
+                        .next() {
+                        counter = &counter_.name
+                    } else {
+                        break;
                     }
                 }
-                // if !high && destination == "rx" {
-                //     return button_push.to_string();
-                // }
-                // if high && ["xc", "th", "pd", "bp"].contains(&source) {
-                //     println!("{button_push}: {source} -{high}-> {destination} ({:?})", states["zh"]);
-                // }
-                if let Some(pulse) = states.get_mut(destination).and_then(|state| state.receive(source, high)) {
-                    pulses.extend(modules[destination].destinations.iter().map(|dest| (destination, dest.as_str(), pulse)))
-                }
-            }
-        }
+                limit
+            })
+            .product::<usize>()
+            .to_string()
     }
 }
 
 impl Puzzle {
-    fn init(&self) -> (HashMap<&str, &Module>, HashMap<&str, State>) {
-        let mut states: HashMap<&str, State> = HashMap::from_iter(self.modules.iter()
+    fn init_states(&self) -> HashMap<&str, State> {
+        HashMap::from_iter(self.modules.iter()
             .map(|module| (
                 module.name.as_str(),
                 match module.module_type {
                     ModuleType::FlipFlop => State::FlipFlop(false),
-                    ModuleType::Conjunction => State::Conjunction(HashMap::new()),
+                    ModuleType::Conjunction => State::Conjunction(HashMap::from_iter(self.get_inputs(&module.name).iter()
+                        .map(|module_| (module_.name.as_str(), false)))),
                     ModuleType::Broadcaster => State::Broadcaster,
                 }
             ))
-        );
+        )
+    }
 
-        for module in self.modules.iter() {
-            for destination in module.destinations.iter() {
-                if let Some(State::Conjunction(inputs)) = states.get_mut(destination.as_str()) {
-                    inputs.insert(&module.name, false);
-                }
-            }
-        }
-
-        let modules: HashMap<&str, &Module> = HashMap::from_iter(self.modules.iter().map(|module| (module.name.as_str(), module)));
-
-        (modules, states)
+    fn get_inputs(&self, module: &String) -> Vec<&Module> {
+        self.modules.iter().filter(|module_| module_.destinations.contains(module)).collect()
     }
 }
 
@@ -196,7 +190,7 @@ mod test {
 
     #[test]
     fn part_1() {
-        // assert_eq!(get_puzzle(1).part_1(), "32000000");
+        assert_eq!(get_puzzle(1).part_1(), "32000000");
         assert_eq!(get_puzzle(2).part_1(), "11687500");
     }
 }
