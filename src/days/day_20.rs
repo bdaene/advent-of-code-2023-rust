@@ -72,21 +72,22 @@ impl PuzzleBase for Puzzle {
         let modules: HashMap<&str, &Module> = HashMap::from_iter(self.modules.iter().map(|module| (module.name.as_str(), module)));
 
         modules["broadcaster"].destinations.iter()
-            .map(|mut counter| {
-                let mut depth: usize = 0;
+            .map(|counter| {
+                let mut bit: usize = 1;
                 let mut limit: usize = 0;
-                while let Some(module) = modules.get(counter.as_str()) {
-                    if module.destinations.iter()
+                let mut flip_flop = modules.get(counter.as_str()).unwrap();
+                loop {
+                    let mut next_flip_flop = None;
+                    flip_flop.destinations.iter()
                         .filter_map(|destination| modules.get(destination.as_str()))
-                        .any(|module| module.module_type == ModuleType::Conjunction) {
-                        limit |= 1 << depth;
-                    }
-                    depth += 1;
-                    if let Some(counter_) = module.destinations.iter()
-                        .filter_map(|destination| modules.get(destination.as_str()))
-                        .filter(|module| module.module_type == ModuleType::FlipFlop)
-                        .next() {
-                        counter = &counter_.name
+                        .for_each(|module| match module.module_type {
+                            ModuleType::Conjunction => { limit |= bit; }
+                            ModuleType::FlipFlop => next_flip_flop = Some(module),
+                            _ => (),
+                        });
+                    if next_flip_flop.is_some() {
+                        bit <<= 1;
+                        flip_flop = next_flip_flop.unwrap();
                     } else {
                         break;
                     }
