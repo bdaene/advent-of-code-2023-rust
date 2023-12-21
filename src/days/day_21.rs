@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use nom::{IResult, Parser};
 use nom::bytes::complete::take_till1;
 use nom::character::complete;
@@ -21,8 +19,8 @@ enum Ground {
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 struct Position {
-    row: isize,
-    col: isize,
+    row: usize,
+    col: usize,
 }
 
 
@@ -38,7 +36,7 @@ impl PuzzleBase for Puzzle {
                     .map(|(row, line)| line.chars().enumerate()
                         .map(|(col, cell)| match cell {
                             'S' => {
-                                start = Some(Position { row: row as isize, col: col as isize });
+                                start = Some(Position { row, col });
                                 Ground::Garden
                             }
                             '.' => Ground::Garden,
@@ -55,44 +53,91 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_1(&self) -> String {
-        self.get_positions_in(64).len().to_string()
+        self.count_positions(64).to_string()
     }
 
     fn part_2(&self) -> String {
-        for i in 1..10 {
-            println!("{i} {}", self.get_positions_in(65 + 131 * i).len())
-        }
-        "".to_string()
+        self.count_positions_large(26501365).to_string()
     }
 }
 
+
 impl Puzzle {
-
-    fn update_positions(&self, positions: &HashSet<Position>) -> HashSet<Position> {
-        HashSet::from_iter(positions.iter().flat_map(|&position| self.get_next_positions(position)))
-    }
-
-    fn get_positions_in(&self, moves: usize) -> HashSet<Position> {
-        let mut positions = HashSet::from([Position { row: 0, col: 0 }]);
-        for _ in 0..moves {
-            positions = self.update_positions(&positions);
+    fn get_distances(&self, from: Position, steps: usize) -> Vec<Vec<Option<usize>>> {
+        let size = self.grid.len();
+        let mut distances = vec![vec![None; 2 * steps + 1]; 2 * steps + 1];
+        if self.grid[from.row % size][from.col % size] == Ground::Rock {
+            return distances;
         }
-        positions
+
+        distances[steps][steps] = Some(0);
+        let offset = size - steps % size;
+        let mut border = vec![(steps, steps)];
+        for step in 1..=steps {
+            let mut border_ = vec![];
+            for (row, col) in border {
+                for (row_, col_) in [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)] {
+                    if distances[row_][col_].is_none() && self.grid[(from.row + row_ + offset) % size][(from.col + col_ + offset) % size] == Ground::Garden {
+                        distances[row_][col_] = Some(step);
+                        border_.push((row_, col_))
+                    }
+                }
+            }
+            border = border_;
+        }
+        distances
     }
 
-    fn get_next_positions(&self, position: Position) -> Vec<Position> {
-        let (height, width) = (self.grid.len() as isize, self.grid[0].len() as isize);
-        [
-            (position.row + 1, position.col),
-            (position.row - 1, position.col),
-            (position.row, position.col + 1),
-            (position.row, position.col - 1),
-        ]
-            .into_iter()
-            .filter(|&(row, col)| self.grid[(row + self.start.row).rem_euclid(height) as usize][(col + self.start.col).rem_euclid(width) as usize] == Ground::Garden)
-            .map(|(row, col)| Position { row, col })
-            .collect()
+    fn count_positions(&self, steps: usize) -> usize {
+        let distances = self.get_distances(self.start, steps);
+        distances.iter()
+            .flat_map(|line| line.iter())
+            .filter(|distance| distance.is_some_and(|d| d <= steps && d % 2 == steps % 2))
+            .count()
     }
+
+    fn count_positions_large(&self, steps: usize) -> usize {
+        let size = self.grid.len();
+        assert_eq!(steps % size, size / 2);
+
+        get_nth_term(|i| self.count_positions(size / 2 + i * size), steps / size)
+    }
+}
+
+fn combinations(r: usize, n: usize) -> usize {
+    let mut c = 1;
+    for i in 0..r {
+        c = c * (n - i) / (i + 1)
+    }
+    c
+}
+
+fn get_nth_term(f: impl Fn(usize) -> usize, n: usize) -> usize {
+    let mut diffs = Vec::<isize>::new();
+    let mut offset = 0;
+    for i in 0.. {
+        diffs.push(f(i) as isize);
+        for j in (1..diffs.len()).rev() {
+            diffs[j - 1] = diffs[j] - diffs[j - 1]
+        }
+        // println!("{diffs:?}");
+        if let Some(i) = diffs.iter().position(|&v| v == 0) {
+            diffs = diffs[i + 1..].to_vec();
+            offset = i + 1;
+            break;
+        }
+    }
+
+    for i in 1..diffs.len() {
+        for j in (i..diffs.len()).rev() {
+            diffs[j] = diffs[j] - diffs[j - 1]
+        }
+    }
+
+    // println!("{diffs:?}");
+    diffs.into_iter().rev().enumerate()
+        .map(|(r, d)| d * combinations(r, n - offset) as isize)
+        .sum::<isize>() as usize
 }
 
 
@@ -136,33 +181,23 @@ mod test {
     fn part_1() {
         let puzzle = get_puzzle();
 
-        assert_eq!(puzzle.get_positions_in(6).len(), 16);
+        assert_eq!(puzzle.count_positions(6), 16);
     }
 
     #[test]
     fn part_2() {
         let puzzle = get_puzzle();
 
-        assert_eq!(puzzle.get_positions_in(6).len(), 16);
-        assert_eq!(puzzle.get_positions_in(10).len(), 50);
-        assert_eq!(puzzle.get_positions_in(50).len(), 1594);
-        assert_eq!(puzzle.get_positions_in(100).len(), 6536);
-        // assert_eq!(puzzle.get_positions_in(500).len(), 167004);
-        // assert_eq!(puzzle.get_positions_in(1000).len(), 668697);
-        // assert_eq!(puzzle.get_positions_in(5000).len(), 16733044);
+        assert_eq!(puzzle.count_positions(6), 16);
+        assert_eq!(puzzle.count_positions(10), 50);
+        assert_eq!(puzzle.count_positions(50), 1594);
+        assert_eq!(puzzle.count_positions(100), 6536);
+        assert_eq!(puzzle.count_positions(500), 167004);
+        assert_eq!(puzzle.count_positions(1000), 668697);
+        // assert_eq!(puzzle.count_positions(5000), 16733044);
 
-        assert_eq!(puzzle.get_positions_in(5).len(), 13);
-        assert_eq!(puzzle.get_positions_in(16).len(), 129);
-        assert_eq!(puzzle.get_positions_in(27).len(), 427);
-        assert_eq!(puzzle.get_positions_in(38).len(), 894);
-        assert_eq!(puzzle.get_positions_in(49).len(), 1528);
-        assert_eq!(puzzle.get_positions_in(5+11*5).len(), 2324);
-        assert_eq!(puzzle.get_positions_in(5+11*6).len(), 3282);
-        assert_eq!(puzzle.get_positions_in(5+11*7).len(), 4402);
-        assert_eq!(puzzle.get_positions_in(5+11*8).len(), 5684);
-        assert_eq!(puzzle.get_positions_in(5+11*9).len(), 7128);
-        assert_eq!(puzzle.get_positions_in(5+11*10).len(), (81*10+67)*10-36);
-        assert_eq!(puzzle.get_positions_in(5+11*11).len(), (81*11+67)*11-36);
-
+        assert_eq!(puzzle.count_positions(5 + 5 * 11), (81 * 5 + 67) * 5 - 36);
+        assert_eq!(puzzle.count_positions_large(5 + 5 * 11), (81 * 5 + 67) * 5 - 36);
+        assert_eq!(puzzle.count_positions_large(5 + 7 * 11), (81 * 7 + 67) * 7 - 36);
     }
 }
