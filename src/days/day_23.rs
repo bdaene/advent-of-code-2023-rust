@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use nom::{IResult, Parser};
 use nom::branch::alt;
@@ -49,46 +49,39 @@ impl PuzzleBase for Puzzle {
     }
 
     fn part_1(&self) -> String {
-        let (start, _end, graph) = self.extract_graph();
-        let ordered_positions = get_topological_sort(&graph);
+        let graph = self.extract_graph();
 
-        let mut distance_to_end = HashMap::new();
-        ordered_positions.iter().rev()
-            .for_each(|position| {
-                let distance = if let Some(destinations) = graph.get(position) {
-                    destinations.keys()
-                        .map(|position| distance_to_end[position] + destinations[position])
-                        .max().unwrap_or(0)
-                } else { 0 };
-                distance_to_end.insert(position, distance);
+        let mut distance_to_end = vec![0usize; graph.nodes.len()];
+        graph.get_topological_sort().into_iter().rev()
+            .for_each(|index| {
+                let distance = graph.nodes[index].successors.iter().copied()
+                    .map(|(successor, distance)| distance_to_end[successor] + distance)
+                    .max()
+                    .unwrap_or(0);
+                distance_to_end[index] = distance;
             });
 
-        distance_to_end[&start].to_string()
+        distance_to_end[graph.start].to_string()
     }
 
     fn part_2(&self) -> String {
-        let (start, end, mut graph) = self.extract_graph();
+        let graph = self.extract_graph().extended();
 
-        extend(&mut graph);
-
-        let mut stack = vec![(0, start, vec![])];
+        let mut stack = vec![(1u64 << graph.start, 0, graph.start)];
         let mut best = 0;
 
-        while let Some((distance, position, seen_positions)) = stack.pop() {
-            if position == end {
+        while let Some((seen, distance, index)) = stack.pop() {
+            if index == graph.end {
                 best = best.max(distance);
                 continue;
             }
-            let mut seen_positions_ = seen_positions.to_vec();
-            seen_positions_.push(position);
-            if let Some(destinations) = graph.get(&position) {
-                stack.extend(
-                    destinations.keys().copied()
-                        .filter(|position| !seen_positions_.contains(position))
-                        .map(|position| (distance + destinations[&position], position, seen_positions_.to_vec()))
-                )
-            }
+
+            stack.extend(graph.nodes[index].successors.iter()
+                .filter(|&(successor, _dist)| (seen & 1 << successor) == 0)
+                .map(|&(successor, dist)| (seen | 1 << successor, distance + dist, successor))
+            );
         }
+
         best.to_string()
     }
 }
@@ -99,10 +92,23 @@ struct Position {
     col: usize,
 }
 
-type Graph = HashMap<Position, HashMap<Position, usize>>;
+#[derive(Debug, PartialEq, Eq)]
+struct Graph {
+    nodes: Vec<Node>,
+    start: NodeIndex,
+    end: NodeIndex,
+}
+
+type NodeIndex = usize;
+
+#[derive(Debug, PartialEq, Eq)]
+struct Node {
+    position: Position,
+    successors: Vec<(NodeIndex, usize)>,
+}
 
 impl Puzzle {
-    fn extract_graph(&self) -> (Position, Position, Graph) {
+    fn extract_graph(&self) -> Graph {
         let start = self.grid[0].iter().copied().enumerate()
             .filter(|&(_, cell)| cell == Cell::Path).next().expect("Should be a start!").0;
         let end = self.grid[self.grid.len() - 1].iter().copied().enumerate()
@@ -110,18 +116,24 @@ impl Puzzle {
         let start = Position { row: 0, col: start };
         let end = Position { row: self.grid.len() - 1, col: end };
 
-        let mut graph = HashMap::new();
+        let mut nodes: Vec<Node> = Vec::from([Node::new(start)]);
+        let mut indexes: HashMap<Position, usize> = HashMap::from([(start, 0)]);
+        let mut visited: HashSet<(Position, Direction)> = HashSet::new();
+
         let mut stack = vec![(start, Direction::Down)];
         while let Some((position, direction)) = stack.pop() {
             if position == end {
                 continue;
             }
-            let (distance, destination) = self.get_path(position, direction);
-            if !graph.contains_key(&position) {
-                graph.insert(position, HashMap::from([(destination, distance)]));
-            } else {
-                graph.get_mut(&position).unwrap().insert(destination, distance);
+            if !visited.insert((position, direction)) {
+                continue;
             }
+            let (distance, destination) = self.get_path(position, direction);
+            if !indexes.contains_key(&destination) {
+                indexes.insert(destination, nodes.len());
+                nodes.push(Node::new(destination));
+            }
+            nodes[indexes[&position]].successors.push((indexes[&destination], distance));
 
             if destination != end {
                 stack.extend(DIRECTIONS.iter().copied()
@@ -132,7 +144,7 @@ impl Puzzle {
             }
         }
 
-        (start, end, graph)
+        Graph { nodes, start: 0, end: indexes[&end] }
     }
 
     fn get_path(&self, from: Position, direction: Direction) -> (usize, Position) {
@@ -181,56 +193,73 @@ impl Direction {
     }
 }
 
-fn get_topological_sort(graph: &Graph) -> Vec<Position> {
-    let mut parent_count = HashMap::new();
-    graph.values()
-        .for_each(|destinations| destinations.keys()
-            .for_each(|position| {
-                if let Some(count) = parent_count.get_mut(position) {
-                    *count += 1;
-                } else {
-                    parent_count.insert(position, 1);
-                }
-            })
-        );
-
-    let mut stack: Vec<Position> = Vec::from_iter(graph.keys().copied().filter(|position| !parent_count.contains_key(position)));
-    let mut ordered_positions = vec![];
-    while let Some(position) = stack.pop() {
-        ordered_positions.push(position);
-        if let Some(destinations) = graph.get(&position) {
-            destinations.keys()
-                .for_each(|position| {
-                    if let Some(count) = parent_count.get_mut(position) {
-                        *count -= 1;
-                        if *count == 0 {
-                            stack.push(*position);
-                        }
-                    }
-                })
-        }
+impl Node {
+    fn new(position: Position) -> Self {
+        Self { position, successors: Vec::new() }
     }
-    ordered_positions
 }
 
-fn extend(graph: &mut Graph) {
-    let new_keys = Vec::from_iter(graph.keys().copied()
-        .flat_map(|position_a| {
-            let destinations = graph.get(&position_a).unwrap();
-            destinations.keys().copied()
-                .map(move |position_b: Position| (position_b, (destinations[&position_b], position_a)))
-        })
-    );
+impl Graph {
+    fn get_topological_sort(&self) -> Vec<NodeIndex> {
+        let mut parent_count = vec![0usize; self.nodes.len()];
+        self.nodes.iter()
+            .for_each(|node| node.successors.iter().copied()
+                .for_each(|(successor, _distance)| {
+                    parent_count[successor] += 1;
+                })
+            );
 
-    new_keys.into_iter()
-        .for_each(|(position_b, (distance, position_a))| {
-            if !graph.contains_key(&position_b) {
-                graph.insert(position_b, HashMap::from([(position_a, distance)]));
-            } else {
-                graph.get_mut(&position_b).unwrap().insert(position_a, distance);
-            }
-        })
+        let mut stack: Vec<usize> = Vec::from_iter(parent_count.iter().copied().enumerate()
+            .filter(|&(_index, count)| count == 0)
+            .map(|(index, _count)| index));
+        let mut ordered_indexes = vec![];
+        while let Some(index) = stack.pop() {
+            ordered_indexes.push(index);
+            self.nodes[index].successors.iter().copied()
+                .for_each(|(successor, _distance)| {
+                    parent_count[successor] -= 1;
+                    if parent_count[successor] == 0 {
+                        stack.push(successor)
+                    }
+                });
+        }
+        ordered_indexes
+    }
+
+    fn extended(&self) -> Graph {
+        let mut nodes: Vec<Node> = self.nodes.iter()
+            .map(|node| Node { position: node.position, successors: node.successors.to_vec() })
+            .collect();
+
+        self.nodes.iter().enumerate()
+            .for_each(|(index, node)| node.successors.iter().copied()
+                .for_each(|(successor, distance)| {
+                    nodes[successor].successors.push((index, distance))
+                }));
+
+        Graph { nodes, start: self.start, end: self.end }
+    }
 }
+
+
+// fn extend(graph: &mut Graph) {
+//     let new_keys = Vec::from_iter(graph.keys().copied()
+//         .flat_map(|position_a| {
+//             let destinations = graph.get(&position_a).unwrap();
+//             destinations.keys().copied()
+//                 .map(move |position_b: Position| (position_b, (destinations[&position_b], position_a)))
+//         })
+//     );
+//
+//     new_keys.into_iter()
+//         .for_each(|(position_b, (distance, position_a))| {
+//             if !graph.contains_key(&position_b) {
+//                 graph.insert(position_b, HashMap::from([(position_a, distance)]));
+//             } else {
+//                 graph.get_mut(&position_b).unwrap().insert(position_a, distance);
+//             }
+//         })
+// }
 
 #[cfg(test)]
 mod test {
